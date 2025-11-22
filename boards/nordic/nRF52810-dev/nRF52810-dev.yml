@@ -1,0 +1,11 @@
+identifier: nRF52810-dev/nrf52810
+name: nRF52810 dev kit
+vendor: nordic
+type: mcu
+arch: arm
+ram: 24
+flash: 192
+toolchain:
+  - zephyr
+supported: []
+

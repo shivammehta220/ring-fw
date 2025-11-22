@@ -1,0 +1,10 @@
+identifier: nRF52832-dev/nrf52832
+name: nRF52832 dev kit
+vendor: nordic
+type: mcu
+arch: arm
+ram: 64
+flash: 512
+toolchain:
+  - zephyr
+supported: []

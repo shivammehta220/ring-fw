@@ -1,0 +1,11 @@
+identifier: nRF52805-dev/nrf52805
+name: nRF52805 dev kit
+vendor: nordic
+type: mcu
+arch: arm
+ram: 24
+flash: 192
+toolchain:
+  - zephyr
+supported: []
+

@@ -1,0 +1,77 @@
+/dts-v1/;
+#include <nordic/nrf52810_qfaa.dtsi>
+#include "nRF52810-dev-pinctrl.dtsi"
+
+/ {
+	model = "nRF52810 dev kit";
+	compatible = "nordic,nRF52810-dev";
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &slot0_partition;
+	};
+
+	aliases {
+		i2c0 = &i2c0;
+	};
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 DT_SIZE_K(32)>;
+		};
+
+		slot0_partition: partition@8000 {
+			label = "image-0";
+			reg = <0x00008000 DT_SIZE_K(128)>;
+		};
+
+		slot1_partition: partition@28000 {
+			label = "image-1";
+			reg = <0x00028000 DT_SIZE_K(128)>;
+		};
+
+		storage_partition: partition@48000 {
+			label = "storage";
+			reg = <0x00048000 DT_SIZE_K(32)>;
+		};
+	};
+};
+
+&i2c0 {
+	compatible = "nordic,nrf-twim";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	pinctrl-0 = <&i2c0_default>;
+	pinctrl-names = "default";
+
+	/* I2C devices */
+	bma400: bma400@18 {
+		compatible = "bosch,bma400";
+		reg = <0x18>;
+		label = "BMA400";
+		status = "okay";
+	};
+
+	max30208: max30208@50 {
+		compatible = "maxim,max30208";
+		reg = <0x50>;
+		label = "MAX30208";
+		status = "okay";
+	};
+
+	maxm86161: maxm86161@5e {
+		compatible = "maxim,maxm86161";
+		reg = <0x5e>;
+		label = "MAXM86161";
+		status = "okay";
+	};
+};
+

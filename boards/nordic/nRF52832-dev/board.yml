@@ -1,0 +1,5 @@
+board:
+  name: nRF52832-dev
+  vendor: nordic
+  socs:
+    - name: nrf52832

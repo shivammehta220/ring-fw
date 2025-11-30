@@ -1,6 +1,6 @@
 # Hardware Connection Guide
 
-This guide provides detailed instructions for connecting the nRF52 DK development board with the required sensors and power management components via I2C.
+This guide provides detailed instructions for connecting the nRF52 DEV development board with the required sensors and power management components via I2C.
 
 ## Overview
 
@@ -11,8 +11,8 @@ This setup is designed for development with the following SoCs:
 
 ### Components
 
-1. **nRF52 DK** - Main development board
-   - [Product Page](https://www.nordicsemi.com/Products/Development-hardware/nRF52-DK)
+1. **nRF52 DEV** - Main development board
+   - [Product Page](https://www.nordicsemi.com/Products/Development-hardware/nRF52-DEV)
 
 2. **nPM1100 EK** - Power management evaluation kit
    - [Product Page](https://www.nordicsemi.com/Products/Development-hardware/nPM1100-EK)
@@ -28,18 +28,18 @@ This setup is designed for development with the following SoCs:
 
 ## I2C Bus Configuration
 
-The nRF52 DK uses **I2C0** (TWI0) for communication with all sensors. The I2C bus is configured as follows:
+The nRF52 DEV uses **I2C0** (TWI0) for communication with all sensors. The I2C bus is configured as follows:
 
-- **SCL (Serial Clock)**: GPIO P0.26 (Pin 26)
-- **SDA (Serial Data)**: GPIO P0.27 (Pin 27)
+- **SDA (Serial Data)**: GPIO P0.26 (Pin 26)
+- **SCL (Serial Clock)**: GPIO P0.27 (Pin 27)
 - **Pull-up resistors**: 4.7kΩ (typically included on Click boards)
 
-### nRF52 DK Pin Assignments
+### nRF52 DEV Pin Assignments
 
-| Function | nRF52 DK Pin | GPIO | Description |
+| Function | nRF52 DEV Pin | GPIO | Description |
 |----------|-------------|------|-------------|
-| I2C SCL  | P0.26       | 26   | Clock line   |
-| I2C SDA  | P0.27       | 27   | Data line    |
+| I2C SDA  | P0.26       | 26   | Data line    |
+| I2C SCL  | P0.27       | 27   | Clock line   |
 | 3.3V     | 3.3V        | -    | Power supply |
 | GND      | GND         | -    | Ground       |
 
@@ -53,10 +53,10 @@ The Heart Rate 2 Click board features the MAXM86161 optical sensor for heart rat
 
 **Connections**:
 
-| Heart Rate 2 Click | nRF52 DK | Description |
+| Heart Rate 2 Click | nRF52 DEV | Description |
 |-------------------|----------|-------------|
-| SCL                | P0.26    | I2C Clock   |
-| SDA                | P0.27    | I2C Data    |
+| SDA                | P0.26    | I2C Data    |
+| SCL                | P0.27    | I2C Clock   |
 | 3.3V               | 3.3V     | Power (3.3V)|
 | GND                | GND      | Ground      |
 | INT                | P0.28    | Interrupt (optional) |
@@ -67,33 +67,37 @@ The Heart Rate 2 Click board features the MAXM86161 optical sensor for heart rat
 
 The Accel 5 Click board features the BMA400 low-power accelerometer.
 
-**I2C Address**: `0x18` or `0x19` (7-bit address, depends on SA0 pin)
+**I2C Address**: `0x18` or `0x19` (7-bit address, depends on SA0 pin/jumper position)
 
 **Connections**:
 
-| Accel 5 Click | nRF52 DK | Description |
+| Accel 5 Click | nRF52 DEV | Description |
 |--------------|----------|-------------|
-| SCL           | P0.26    | I2C Clock   |
-| SDA           | P0.27    | I2C Data    |
+| SDA           | P0.26    | I2C Data    |
+| SCL           | P0.27    | I2C Clock   |
 | 3.3V          | 3.3V     | Power (3.3V)|
 | GND           | GND      | Ground      |
 | INT1          | P0.29    | Interrupt 1 (optional) |
 | INT2          | P0.30    | Interrupt 2 (optional) |
 
-**Note**: Check the Accel 5 Click board documentation for the SA0 pin configuration to determine the I2C address.
+**I2C Address Selection**:
+- **Left position (SA0 = 0)**: I2C address `0x18` (0x30 in 8-bit)
+- **Right position (SA0 = 1)**: I2C address `0x19` (0x32 in 8-bit)
+
+**Note**: The Accel 5 Click board has an I2C address LSB selection jumper. The default configuration in the device tree files uses address `0x19` (right position bridged). If your board has the jumper in the left position, change the device tree `reg` value to `0x18`.
 
 ### 3. MAX30208EVSYS (MAX30208CLB+T)
 
 The MAX30208EVSYS evaluation system includes the MAX30208 temperature sensor.
 
-**I2C Address**: `0x50` (7-bit address, default)
+**I2C Address**: `0x18` (7-bit address)
 
 **Connections**:
 
-| MAX30208EVSYS | nRF52 DK | Description |
+| MAX30208EVSYS | nRF52 DEV | Description |
 |---------------|----------|-------------|
-| SCL            | P0.26    | I2C Clock   |
-| SDA            | P0.27    | I2C Data    |
+| SDA            | P0.26    | I2C Data    |
+| SCL            | P0.27    | I2C Clock   |
 | 3.3V           | 3.3V     | Power (3.3V)|
 | GND            | GND      | Ground      |
 | INT            | P0.31    | Interrupt (optional) |
@@ -116,8 +120,8 @@ The nPM1100 Evaluation Kit provides power management capabilities for the develo
      - Current limits
      - Charging parameters
 
-3. **Connection to nRF52 DK**:
-   - Connect the nPM1100 EK output to the nRF52 DK power input
+3. **Connection to nRF52 DEV**:
+   - Connect the nPM1100 EK output to the nRF52 DEV power input
    - Ensure common ground connection
 
 4. **LED Indicators**:
@@ -131,7 +135,7 @@ The nPM1100 Evaluation Kit provides power management capabilities for the develo
 ```
 nPM1100 EK (VOUT)
     |
-    +---> nRF52 DK (3.3V)
+    +---> nRF52 DEV (3.3V)
     |
     +---> Heart Rate 2 Click (3.3V)
     |
@@ -145,7 +149,7 @@ nPM1100 EK (VOUT)
 ## Complete Wiring Diagram
 
 ```
-                    nRF52 DK
+                    nRF52 DEV
                     ┌─────────┐
                     │         │
                     │  P0.26  │───┬─── SCL (I2C Bus)
@@ -159,7 +163,7 @@ nPM1100 EK (VOUT)
                     │             │             │
          Heart Rate │   Accel 5   │  MAX30208   │
          2 Click    │    Click    │   EVSYS     │
-         (0x5E)     │   (0x18)    │   (0x50)    │
+         (0x62)     │   (0x15)    │   (0x18)    │
                     │             │             │
                     └─────────────┴─────────────┘
 ```
@@ -168,28 +172,28 @@ nPM1100 EK (VOUT)
 
 | Device | I2C Address (7-bit) | I2C Address (8-bit) | Notes |
 |--------|---------------------|---------------------|-------|
-| BMA400 (Accel 5 Click) | 0x18 or 0x19 | 0x30 or 0x32 | Depends on SA0 pin |
-| MAX30208 | 0x50 | 0xA0 | Default address |
-| MAXM86161 (Heart Rate 2 Click) | 0x5E | 0xBC | Fixed address |
+| BMA400 (Accel 5 Click) | 0x15 | 0x2A | Fixed address |
+| MAX30208 | 0x18 | 0x30 | Fixed address |
+| MAXM86161 (Heart Rate 2 Click) | 0x62 | 0xC4 | Fixed address |
 
 ## Board File Configuration
 
 The board files for each SoC are configured with the following I2C devices:
 
-- **BMA400**: Address `0x18`, compatible string `"bosch,bma400"`
-- **MAX30208**: Address `0x50`, compatible string `"maxim,max30208"`
-- **MAXM86161**: Address `0x5E`, compatible string `"maxim,maxm86161"`
+- **BMA400**: Address `0x15`, compatible string `"bosch,bma4xx"`
+- **MAX30208**: Address `0x18`, compatible string `"maxim,max30208"`
+- **MAXM86161**: Address `0x62`, compatible string `"maxim,maxm86161"`
 
 All devices are connected to I2C0 with:
 - Clock frequency: Standard I2C (100 kHz)
-- SCL: GPIO P0.26
-- SDA: GPIO P0.27
+- SDA: GPIO P0.26
+- SCL: GPIO P0.27
 
 ## Development Setup
 
 ### 1. Hardware Assembly
 
-1. Place the nRF52 DK on a stable surface
+1. Place the nRF52 DEV on a stable surface
 2. Connect the nPM1100 EK for power management (optional for initial testing)
 3. Connect all Click boards and evaluation boards to the I2C bus
 4. Ensure all devices share a common ground
@@ -200,13 +204,13 @@ All devices are connected to I2C0 with:
 1. Select the appropriate board configuration:
    ```bash
    # For nRF52805
-   west build -b nRF52805-dev
+   west build -b nrf52_dev/nrf52805
    
    # For nRF52810
-   west build -b nRF52810-dev
+   west build -b nrf52_dev/nrf52810
    
    # For nRF52832
-   west build -b nRF52832-dev
+   west build -b nrf52_dev/nrf52832
    ```
 
 2. The board files automatically configure:
@@ -248,7 +252,7 @@ Use I2C scanner tools or sample applications to verify communication with each s
 
 ## Additional Resources
 
-- [nRF52 DK User Guide](https://infocenter.nordicsemi.com/topic/ug_nrf52_dk/UG/nrf52_DK/nRF52_DK_intro.html)
+- [nRF52 DEV User Guide](https://infocenter.nordicsemi.com/topic/ug_nrf52_dk/UG/nrf52_DK/nRF52_DK_intro.html)
 - [nPM1100 EK Documentation](https://infocenter.nordicsemi.com/topic/ug_npm1100_ek/UG/npm1100_ek/npm1100_ek_intro.html)
 - [Heart Rate 2 Click Documentation](https://www.mikroe.com/heart-rate-2-click)
 - [Accel 5 Click Documentation](https://www.mikroe.com/accel-5-click)
@@ -262,5 +266,5 @@ Use I2C scanner tools or sample applications to verify communication with each s
 - Interrupt pins are optional but recommended for efficient operation
 - The nPM1100 EK is optional for development but recommended for power management features
 - Ensure all devices operate at 3.3V logic levels
-- The board files are configured for development with the nRF52 DK hardware
+- The board files are configured for development with the nRF52 DEV hardware
 

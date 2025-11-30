@@ -1,0 +1,8 @@
+board:
+  name: nrf52_dev
+  full_name: nRF52 DEV
+  vendor: nordic
+  socs:
+  - name: nrf52805
+  - name: nrf52810
+  - name: nrf52832

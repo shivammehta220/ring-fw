@@ -1,6 +1,0 @@
-board:
-  name: nRF52810-dev
-  vendor: nordic
-  socs:
-    - name: nrf52810
-

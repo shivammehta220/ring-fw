@@ -1,4 +1,0 @@
-config BOARD_NRF52810-DEV
-	bool "nRF52810 Dev Kit"
-	depends on SOC_NRF52810_QFAA
-

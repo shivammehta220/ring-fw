@@ -1,6 +1,0 @@
-board:
-  name: nRF52805-dev
-  vendor: nordic
-  socs:
-    - name: nrf52805
-

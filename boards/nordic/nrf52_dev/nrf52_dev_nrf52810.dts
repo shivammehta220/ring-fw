@@ -1,0 +1,111 @@
+/*
+ * Copyright (c) 2018 Nordic Semiconductor ASA
+ * Copyright (c) 2017 Shawn Nock <shawn@monadnock.ca>
+ * Copyright (c) 2017 Linaro Limited
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+#include <nordic/nrf52810_qfaa.dtsi>
+#include "nrf52_dev_nrf52810-pinctrl.dtsi"
+
+/ {
+	model = "Nordic nRF52 DEV NRF52810";
+	compatible = "nordic,nrf52-dk-nrf52810";
+
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &slot0_partition;
+	};
+
+	aliases {
+		i2c0 = &i2c0;
+	};
+};
+
+&reg {
+	regulator-initial-mode = <NRF5X_REG_MODE_DCDC>;
+};
+
+&uicr {
+	gpio-as-nreset;
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&uart0 {
+	compatible = "nordic,nrf-uarte";
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-1 = <&uart0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&i2c0 {
+	compatible = "nordic,nrf-twi";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	pinctrl-0 = <&i2c0_default>;
+	pinctrl-1 = <&i2c0_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	/* I2C sensors */
+	bma400: bma400@15 {
+		compatible = "bosch,bma400";
+		reg = <0x15>;
+		label = "BMA400";
+		status = "okay";
+	};
+
+	max30208: max30208@50 {
+		compatible = "maxim,max30208";
+		reg = <0x50>;
+		label = "MAX30208";
+		status = "okay";
+	};
+
+	maxm86161: maxm86161@62 {
+		compatible = "maxim,maxm86161";
+		reg = <0x62>;
+		label = "MAXM86161";
+		status = "okay";
+	};
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 0xc000>;
+		};
+
+		slot0_partition: partition@c000 {
+			label = "image-0";
+			reg = <0x0000C000 0xe000>;
+		};
+
+		slot1_partition: partition@1a000 {
+			label = "image-1";
+			reg = <0x0001a000 0xe000>;
+		};
+
+		storage_partition: partition@28000 {
+			label = "storage";
+			reg = <0x00028000 0x00008000>;
+		};
+	};
+};

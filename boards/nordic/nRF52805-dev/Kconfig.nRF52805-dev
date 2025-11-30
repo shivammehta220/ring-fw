@@ -1,4 +1,0 @@
-config BOARD_NRF52805-DEV
-	bool "nRF52805 Dev Kit"
-	depends on SOC_NRF52805_QFAA
-

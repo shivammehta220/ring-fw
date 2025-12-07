@@ -22,6 +22,16 @@
 
 	aliases {
 		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+	};
+
+	vbatt {
+		io-channels = <&adc 0>;
+		io-channel-names = "VBATT";
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_VDD>;
 	};
 };
 
@@ -63,12 +73,33 @@
 	pinctrl-names = "default", "sleep";
 
 	/* I2C sensors */
-	bma400: bma400@15 {
-		compatible = "bosch,bma400";
-		reg = <0x15>;
-		label = "BMA400";
+	maxm86161: maxm86161@62 {
+		compatible = "maxim,maxm86161";
+		reg = <0x62>;
+		label = "MAXM86161";
 		status = "okay";
+		enable-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 	};
+};
+
+&i2c1 {
+	compatible = "nordic,nrf-twi";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	pinctrl-0 = <&i2c1_default>;
+	pinctrl-1 = <&i2c1_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	/* I2C sensors on separate bus */
+	bma400: bma400@15 {
+        compatible = "bosch,bma400";
+        reg = <0x15>;
+        label = "BMA400";
+        status = "okay";
+
+        /* BMA400 INT1 -> nRF52 P0.11 (example) */
+        int1-gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+    };
 
 	max30208: max30208@50 {
 		compatible = "maxim,max30208";
@@ -76,13 +107,10 @@
 		label = "MAX30208";
 		status = "okay";
 	};
+};
 
-	maxm86161: maxm86161@62 {
-		compatible = "maxim,maxm86161";
-		reg = <0x62>;
-		label = "MAXM86161";
-		status = "okay";
-	};
+&adc {
+	status = "okay";
 };
 
 &flash0 {

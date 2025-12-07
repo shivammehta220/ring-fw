@@ -1,14 +1,19 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/i2c.h>
+#include <zephyr/devicetree.h>
 #include <zephyr/sys/printk.h>
 #include <errno.h>
 #include <stdbool.h>
 
 #include "max30208.h"
 
-/* 7-bit I2C address – from your devicetree: reg = <0x50>; */
-#define MAX30208_I2C_ADDR              0x50
+/* Find any node in the DT with compatible "maxim,max30208" */
+#define MAX30208_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(maxim_max30208)
+
+#if !DT_NODE_HAS_STATUS(MAX30208_NODE, okay)
+#error "No MAX30208 devicetree node found. Add one with compatible = \"maxim,max30208\"."
+#endif
 
 /* Register map (from datasheet) */
 #define MAX30208_REG_STATUS            0x00
@@ -64,6 +69,11 @@ static bool max30208_initialized;
 #define MAX30208_I2C_DELAY_MS  1
 
 /* Small helpers with retry logic */
+static uint16_t max30208_i2c_addr(void)
+{
+    return DT_REG_ADDR(MAX30208_NODE);
+}
+
 static int max30208_i2c_write_byte(uint8_t reg, uint8_t value)
 {
     int err;
@@ -74,7 +84,7 @@ static int max30208_i2c_write_byte(uint8_t reg, uint8_t value)
 
     for (int i = 0; i < MAX30208_I2C_RETRIES; i++) {
         err = i2c_reg_write_byte(max30208_i2c_dev,
-                                 MAX30208_I2C_ADDR,
+                                 max30208_i2c_addr(),
                                  reg,
                                  value);
         if (!err) {
@@ -96,7 +106,7 @@ static int max30208_i2c_read_byte(uint8_t reg, uint8_t *value)
 
     for (int i = 0; i < MAX30208_I2C_RETRIES; i++) {
         err = i2c_reg_read_byte(max30208_i2c_dev,
-                                MAX30208_I2C_ADDR,
+                                max30208_i2c_addr(),
                                 reg,
                                 value);
         if (!err) {
@@ -118,7 +128,7 @@ static int max30208_i2c_burst_read(uint8_t reg, uint8_t *buf, size_t len)
 
     for (int i = 0; i < MAX30208_I2C_RETRIES; i++) {
         err = i2c_burst_read(max30208_i2c_dev,
-                             MAX30208_I2C_ADDR,
+                             max30208_i2c_addr(),
                              reg,
                              buf,
                              len);
@@ -133,26 +143,14 @@ static int max30208_i2c_burst_read(uint8_t reg, uint8_t *buf, size_t len)
 
 int max30208_app_init(void)
 {
-    /* Try a few common I2C bus names; adjust if needed for your board */
-    static const char * const bus_candidates[] = {
-        "I2C_0",
-        "i2c0",
-        "I2C0",
-        "i2c@40003000",
-        NULL
-    };
+    const struct device *i2c_dev = DEVICE_DT_GET(DT_BUS(MAX30208_NODE));
 
-    for (int i = 0; bus_candidates[i] != NULL; ++i) {
-        max30208_i2c_dev = device_get_binding(bus_candidates[i]);
-        if (max30208_i2c_dev != NULL) {
-            break;
-        }
-    }
-
-    if (max30208_i2c_dev == NULL) {
-        printk("MAX30208: failed to find I2C bus\n");
+    if (!device_is_ready(i2c_dev)) {
+        printk("MAX30208: I2C bus %s not ready\n", i2c_dev->name);
         return -ENODEV;
     }
+
+    max30208_i2c_dev = i2c_dev;
 
     /* Optional soft reset */
     int err = max30208_i2c_write_byte(MAX30208_REG_SYSTEM_CONTROL,
@@ -187,8 +185,9 @@ int max30208_app_init(void)
         return -EINVAL;
     }
 
+    uint16_t addr = DT_REG_ADDR(MAX30208_NODE);
     printk("MAX30208: init OK on %s @ 0x%02X (PART_ID=0x%02X)\n",
-           max30208_i2c_dev->name, MAX30208_I2C_ADDR, part_id);
+           max30208_i2c_dev->name, addr, part_id);
 
     max30208_initialized = true;
     return 0;

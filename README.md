@@ -42,21 +42,21 @@ Application firmware for a wearable device built on Zephyr RTOS. It runs a singl
 - **Battery (VDD/4 SAADC)**
   - Sampled infrequently (`RING_BATT_PERIOD_MS` = 60 s) when not in DEEP_SLEEP via `ble_app_sample_battery_mv()`.
 
-## BLE Service Model
+## BLE Service Model (single custom service)
 - Located in `src/ble_app.c` / `src/ble_app.h`.
-- **Custom service** with two characteristics (both read + notify):
-  - **Measurements** (`ring_data_uuid`): HR, SpO2, skin temp (centi-deg C), battery mV, ring mode, contact.
-  - **Motion** (`ring_motion_uuid`): step count (u32) and activity state.
+- **One custom service**, two characteristics (read + notify):
+  - **Measurements** (`ring_data_uuid`): HR (BPM), SpO2 (%), skin temp (centi-deg C), battery mV, ring mode, contact flag.
+  - **Motion** (`ring_motion_uuid`): step count (u32) and activity state; also accepts a **write-without-response opcode 0x01** to reset the reported step count (implemented as an offset, does not clear the sensor).
 - **Data flow**
   - `main.c` builds `struct ring_ble_snapshot` and calls `ble_app_publish(&snap);`.
-  - `ble_app_publish` packs payloads (`ring_payload_meas`, `ring_payload_motion`) and sends notify if values changed and CCC enabled.
+  - `ble_app_publish` caches, applies step offset, and notifies only when values change and CCC is enabled.
 - **UUIDs**
   - Service: `d8b8a466-9f41-4a4e-9740-20a1f2b6c8f5`
   - Measurements: `b8fd8a95-f86f-4b26-9a9d-7e9b9f3d3dd6`
   - Motion: `6e2c8b9c-e0e1-49c9-9c2a-4b0e8a0f3c77`
 - **Connection helpers**
   - `ble_app_is_connected()` indicates link status.
-  - Battery percentage is also updated via the standard Battery Service for interoperability.
+  - Advertising uses only the custom service UUID plus the device name.
 
 ## Developing / Extending BLE
 1. **Add a new field to the snapshot:**

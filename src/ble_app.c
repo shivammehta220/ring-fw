@@ -72,6 +72,8 @@ static struct ring_payload_motion g_payload_motion;
 static bool notify_enabled_meas;
 static bool notify_enabled_motion;
 static struct bt_conn *current_conn;
+static bool step_reset_pending;
+static uint32_t step_reset_offset;
 
 static ssize_t ring_data_read(struct bt_conn *conn,
                               const struct bt_gatt_attr *attr,
@@ -103,6 +105,27 @@ static void ring_motion_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_
     LOG_INF("BLE motion notify %s", notify_enabled_motion ? "enabled" : "disabled");
 }
 
+static ssize_t ring_motion_write(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+                                 const void *buf, uint16_t len, uint16_t offset, uint8_t flags)
+{
+    ARG_UNUSED(conn);
+    ARG_UNUSED(attr);
+    ARG_UNUSED(offset);
+    ARG_UNUSED(flags);
+
+    /* Simple opcode-based command. Expect 1 byte: 0x01 = reset step count */
+    if (len >= 1U) {
+        const uint8_t *data = buf;
+        if (data[0] == 0x01U) {
+            step_reset_pending = true;
+            LOG_INF("BLE motion: reset requested");
+            return len;
+        }
+    }
+
+    return BT_GATT_ERR(BT_ATT_ERR_WRITE_NOT_PERMITTED);
+}
+
 BT_GATT_SERVICE_DEFINE(ring_svc,
     BT_GATT_PRIMARY_SERVICE(&ring_service_uuid),
     BT_GATT_CHARACTERISTIC(&ring_data_uuid.uuid,
@@ -113,9 +136,9 @@ BT_GATT_SERVICE_DEFINE(ring_svc,
                 BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 
     BT_GATT_CHARACTERISTIC(&ring_motion_uuid.uuid,
-                           BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-                           BT_GATT_PERM_READ,
-                           ring_motion_read, NULL, &g_payload_motion),
+                           BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY | BT_GATT_CHRC_WRITE_WITHOUT_RESP,
+                           BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+                           ring_motion_read, ring_motion_write, &g_payload_motion),
     BT_GATT_CCC(ring_motion_ccc_cfg_changed,
                 BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
 );
@@ -160,6 +183,7 @@ static struct bt_conn_cb conn_callbacks = {
 
 #define ADV_INT_MIN  BT_GAP_ADV_FAST_INT_MIN_2
 #define ADV_INT_MAX  BT_GAP_ADV_FAST_INT_MAX_2
+#define MOTION_CMD_RESET 0x01
 
 /* ------------------------------------------------------------------------- */
 /* Public API                                                                */
@@ -261,6 +285,17 @@ void ble_app_publish(const struct ring_ble_snapshot *snapshot)
         return;
     }
 
+    /* If a reset was requested, latch current raw step count as new offset */
+    if (step_reset_pending) {
+        step_reset_offset = snapshot->step_count;
+        step_reset_pending = false;
+    }
+
+    uint32_t adj_steps = 0;
+    if (snapshot->step_count >= step_reset_offset) {
+        adj_steps = snapshot->step_count - step_reset_offset;
+    }
+
     struct ring_payload_meas new_payload = {
         .hr_bpm      = sys_cpu_to_le16(snapshot->hr_bpm),
         .spo2_pct    = sys_cpu_to_le16(snapshot->spo2_pct),
@@ -271,7 +306,7 @@ void ble_app_publish(const struct ring_ble_snapshot *snapshot)
     };
 
     struct ring_payload_motion new_motion = {
-        .step_count = sys_cpu_to_le32(snapshot->step_count),
+        .step_count = sys_cpu_to_le32(adj_steps),
         .step_state = snapshot->step_state,
         .reserved   = {0},
     };

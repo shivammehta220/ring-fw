@@ -285,6 +285,10 @@ void ble_app_publish(const struct ring_ble_snapshot *snapshot)
         return;
     }
 
+    /* Temporary debug: log raw step_count/step_state being published */
+    printk("BLE publish: raw step_count=%lu, step_state=%u\n",
+           (unsigned long)snapshot->step_count, snapshot->step_state);
+
     /* If a reset was requested, latch current raw step count as new offset */
     if (step_reset_pending) {
         step_reset_offset = snapshot->step_count;

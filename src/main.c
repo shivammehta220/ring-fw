@@ -45,6 +45,10 @@ static bool     have_temp_sample;
 static uint16_t last_batt_mv;
 static bool     have_batt_sample;
 
+/* Last known good step counter values (guarded against transient read failures) */
+static uint32_t last_step_count = 0;
+static bma400_step_stat_t last_step_stat = BMA400_STEP_STAT_STILL;
+
 /* Apply mode → sensor power configuration */
 static void ring_apply_mode(ring_mode_t new_mode)
 {
@@ -215,17 +219,25 @@ int main(void)
             (ring_mode == RING_MODE_DEEP_SLEEP) ?
             RING_DEEP_SLEEP_BMA_PERIOD_MS : RING_BMA_PERIOD_MS;
 
-        uint32_t step_count = 0;
-        bma400_step_stat_t step_stat = BMA400_STEP_STAT_STILL;
-
         if ((now - last_bma_sample_ms) >= bma_period_ms) {
             bma400_app_print();      /* updates no-motion flag + step log */
             last_bma_sample_ms = now;
+        }
 
-            /* Grab the latest step counter / activity status */
-            (void)bma400_app_read_step_counter(&step_count, &step_stat);
+        /* Always try to read step counter (guarded against failures) */
+        uint32_t step_count = 0;
+        bma400_step_stat_t step_stat = BMA400_STEP_STAT_STILL;
+        int ret = bma400_app_read_step_counter(&step_count, &step_stat);
+        if (ret == 0) {
+            /* Read succeeded: update last known good values */
+            last_step_count = step_count;
+            last_step_stat = step_stat;
+            printk("BMA400: read success - step_count=%lu, step_stat=%d\n",
+                   (unsigned long)step_count, (int)step_stat);
         } else {
-            (void)bma400_app_read_step_counter(&step_count, &step_stat);
+            /* Read failed: keep last known values, log the error */
+            printk("BMA400: read failed (ret=%d), keeping last known values: step_count=%lu, step_stat=%d\n",
+                   ret, (unsigned long)last_step_count, (int)last_step_stat);
         }
 
         /* Temperature: slower when idle; off in deep sleep */
@@ -274,8 +286,8 @@ int main(void)
             .battery_mv  = have_batt_sample ? last_batt_mv : 0,
             .ring_mode   = ring_mode,
             .contact     = maxm86161_has_contact(),
-            .step_count  = step_count,
-            .step_state  = (uint8_t)step_stat,
+            .step_count  = last_step_count,
+            .step_state  = (uint8_t)last_step_stat,
         };
         ble_app_publish(&snap);
 

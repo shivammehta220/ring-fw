@@ -73,25 +73,87 @@ int bma400_app_read_step_counter(uint32_t *step_count,
     return bma400_read_step_counter(&bma400_global, step_count, step_stat);
 }
 
+int bma400_app_force_wake(void)
+{
+    if (!bma400_initialized) {
+        return -ENODEV;
+    }
+
+    /* Force wake-up by writing directly to ACC_CONFIG0.
+     * Try to read first to preserve other bits, but if that fails
+     * (device in SLEEP mode), write directly with just power mode bits.
+     */
+    uint8_t acc_conf0 = 0;
+    int ret = bma400_read_reg(&bma400_global, BMA400_REG_ACC_CONFIG0, &acc_conf0);
+    
+    if (ret) {
+        /* Read failed - device likely in SLEEP mode.
+         * Write directly with just power mode set to NORMAL.
+         * Other bits will be 0, which is acceptable for wake-up.
+         */
+        acc_conf0 = BMA400_ACC_CONFIG0_POWER_MODE_NORMAL;
+    } else {
+        /* Read succeeded - preserve other bits, only change power mode */
+        acc_conf0 &= ~BMA400_ACC_CONFIG0_POWER_MODE_MASK;
+        acc_conf0 |= BMA400_ACC_CONFIG0_POWER_MODE_NORMAL;
+    }
+
+    ret = bma400_write_reg(&bma400_global, BMA400_REG_ACC_CONFIG0, acc_conf0);
+    if (ret) {
+        printk("BMA400: force wake failed (%d)\n", ret);
+        return ret;
+    }
+
+    /* Wait for device to stabilize after wake-up (datasheet: ~2ms typical) */
+    k_sleep(K_MSEC(5));
+
+    printk("BMA400: forced wake-up to NORMAL mode\n");
+    return 0;
+}
+
 int bma400_app_set_power_mode(bma400_power_mode_t mode)
 {
     if (!bma400_initialized) {
         return -ENODEV;
     }
 
+    /* Try to read current register value */
     uint8_t acc_conf0 = 0;
     int ret = bma400_read_reg(&bma400_global, BMA400_REG_ACC_CONFIG0, &acc_conf0);
+    
     if (ret) {
-        return ret;
+        /* If read fails, device might be in SLEEP mode.
+         * Try to force wake-up first, then retry.
+         */
+        printk("BMA400: register read failed (%d), attempting force wake\n", ret);
+        ret = bma400_app_force_wake();
+        if (ret) {
+            return ret;
+        }
+        
+        /* Retry reading after wake-up */
+        ret = bma400_read_reg(&bma400_global, BMA400_REG_ACC_CONFIG0, &acc_conf0);
+        if (ret) {
+            printk("BMA400: register read still failing after wake (%d)\n", ret);
+            return ret;
+        }
     }
 
+    /* Update power mode bits */
     acc_conf0 &= ~BMA400_ACC_CONFIG0_POWER_MODE_MASK;
     acc_conf0 |= (uint8_t)mode;
 
     ret = bma400_write_reg(&bma400_global, BMA400_REG_ACC_CONFIG0, acc_conf0);
     if (ret) {
+        printk("BMA400: power mode write failed (%d)\n", ret);
         return ret;
     }
+
+    /* Wait for device to stabilize after mode change.
+     * SLEEP->NORMAL: ~2ms, LP->NORMAL: ~1ms, NORMAL->LP: ~1ms
+     * Use 5ms to be safe for all transitions.
+     */
+    k_sleep(K_MSEC(5));
 
     printk("BMA400: power mode changed to %s\n",
            (mode == BMA400_POWER_MODE_NORMAL) ? "NORMAL" :
@@ -131,11 +193,29 @@ int bma400_init(struct bma400_dev *dev,
     dev->i2c_addr = i2c_addr;
     dev->range    = range;
 
+    /* First, try to wake the device from SLEEP mode if it's sleeping.
+     * Write directly to ACC_CONFIG0 without reading first, in case
+     * the device is in SLEEP and I2C reads are unreliable.
+     */
+    uint8_t wake_conf0 = 0;
+    wake_conf0 &= ~BMA400_ACC_CONFIG0_POWER_MODE_MASK;
+    wake_conf0 |= BMA400_ACC_CONFIG0_POWER_MODE_NORMAL;
+    (void)bma400_write_reg(dev, BMA400_REG_ACC_CONFIG0, wake_conf0);
+    k_sleep(K_MSEC(5)); /* Wait for device to wake up */
+
+    /* Now try to read CHIP_ID to verify communication */
     uint8_t chip_id = 0;
     int ret = bma400_read_reg(dev, BMA400_REG_CHIP_ID, &chip_id);
     if (ret) {
-        printk("BMA400: Failed to read CHIP_ID (%d)\n", ret);
-        return ret;
+        printk("BMA400: Failed to read CHIP_ID (%d) - device may be stuck in SLEEP\n", ret);
+        /* Try one more wake-up attempt */
+        (void)bma400_write_reg(dev, BMA400_REG_ACC_CONFIG0, wake_conf0);
+        k_sleep(K_MSEC(10));
+        ret = bma400_read_reg(dev, BMA400_REG_CHIP_ID, &chip_id);
+        if (ret) {
+            printk("BMA400: CHIP_ID read still failing after retry (%d)\n", ret);
+            return ret;
+        }
     }
 
     if (chip_id != BMA400_CHIP_ID) {
@@ -144,10 +224,11 @@ int bma400_init(struct bma400_dev *dev,
         return -EIO;
     }
 
-    /* Put accelerometer into normal mode */
+    /* Ensure accelerometer is in normal mode (may have been partially configured above) */
     uint8_t acc_conf0 = 0;
     ret = bma400_read_reg(dev, BMA400_REG_ACC_CONFIG0, &acc_conf0);
     if (ret) {
+        printk("BMA400: Failed to read ACC_CONFIG0 (%d)\n", ret);
         return ret;
     }
 
@@ -156,8 +237,12 @@ int bma400_init(struct bma400_dev *dev,
 
     ret = bma400_write_reg(dev, BMA400_REG_ACC_CONFIG0, acc_conf0);
     if (ret) {
+        printk("BMA400: Failed to write ACC_CONFIG0 (%d)\n", ret);
         return ret;
     }
+
+    /* Wait for device to stabilize */
+    k_sleep(K_MSEC(5));
 
     /* ACC_CONFIG1:
      *   - ODR = 100 Hz (acc_odr = 0x8)

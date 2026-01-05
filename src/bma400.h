@@ -156,6 +156,12 @@ typedef enum {
 /* Change power mode of the global BMA400 instance selected from devicetree. */
 int bma400_app_set_power_mode(bma400_power_mode_t mode);
 
+/* Force wake-up from SLEEP mode by writing directly to ACC_CONFIG0.
+ * Use this if the device is stuck in SLEEP and normal register reads fail.
+ * Returns 0 on success, negative error code on failure.
+ */
+int bma400_app_force_wake(void);
+
 /* Convenience: read step count + activity for the global instance. */
 int bma400_app_read_step_counter(uint32_t *step_count,
                                  bma400_step_stat_t *step_stat);
